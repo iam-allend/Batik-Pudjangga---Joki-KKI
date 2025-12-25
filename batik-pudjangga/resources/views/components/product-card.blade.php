@@ -62,24 +62,30 @@
             @endif
         </div>
         
-        <div class="product-footer">
-            @if($product->stock > 0)
-                @auth
-                    <button type="button" class="btn btn-primary btn-sm w-100 btn-add-cart" 
-                            onclick="quickAddToCart({{ $product->id }}, this)">
-                        <i class="fas fa-cart-plus me-1"></i>Add to Cart
-                    </button>
+        <form action="{{ route('cart.add.inCard') }}" method="POST" id="addToCartForm">
+            @csrf
+            <input type="hidden" name="product_id" value="{{ $product->id }}">
+
+            <div class="product-footer">
+                @if($product->stock > 0)
+                    @auth
+                        <input type="number" name="quantity" id="quantity" class="form-control text-center"
+                                value="1" min="1" max="{{ $product->stock }}" required hidden>
+                        <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
+                            <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+                        </button>
+                    @else
+                        <a href="{{ route('login') }}" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-sign-in-alt me-1"></i>Login to Purchase
+                        </a>
+                    @endauth
                 @else
-                    <a href="{{ route('login') }}" class="btn btn-primary btn-sm w-100">
-                        <i class="fas fa-sign-in-alt me-1"></i>Login to Purchase
-                    </a>
-                @endauth
-            @else
-                <button class="btn btn-secondary btn-sm w-100" disabled>
-                    <i class="fas fa-times me-1"></i>Out of Stock
-                </button>
-            @endif
-        </div>
+                    <button class="btn btn-secondary btn-sm w-100" disabled>
+                        <i class="fas fa-times me-1"></i>Out of Stock
+                    </button>
+                @endif
+            </div>
+        </form>
     </div>
 </div>
 
@@ -279,47 +285,56 @@ function quickAddToCart(productId, button) {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
     button.disabled = true;
     
-    fetch('/api/cart/add', {
+    // Use jQuery AJAX with proper CSRF handling
+    $.ajax({
+        url: '/api/cart/add',
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({
+        data: JSON.stringify({
             product_id: productId,
             quantity: 1
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            button.innerHTML = '<i class="fas fa-check"></i> Added!';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-success');
-            
-            // Update cart count
-            updateCartCount();
-            
-            // Show success toast
-            showToast('Product added to cart!', 'success');
-            
-            // Reset button after 2 seconds
-            setTimeout(() => {
+        }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(data) {
+            if (data.success) {
+                button.innerHTML = '<i class="fas fa-check"></i> Added!';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-success');
+                
+                // Update cart count
+                if (typeof updateCartCount === 'function') {
+                    updateCartCount();
+                }
+                
+                // Show success toast
+                showToast(data.message || 'Product added to cart!', 'success');
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-primary');
+                    button.disabled = false;
+                }, 2000);
+            } else {
                 button.innerHTML = originalHTML;
-                button.classList.remove('btn-success');
-                button.classList.add('btn-primary');
                 button.disabled = false;
-            }, 2000);
-        } else {
+                showToast(data.message || 'Failed to add to cart', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
             button.innerHTML = originalHTML;
             button.disabled = false;
-            showToast(data.message || 'Failed to add to cart', 'error');
+            
+            let errorMessage = 'An error occurred';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            showToast(errorMessage, 'error');
+            console.error('Add to cart error:', xhr.responseJSON);
         }
-    })
-    .catch(error => {
-        button.innerHTML = originalHTML;
-        button.disabled = false;
-        showToast('An error occurred', 'error');
     });
 }
 
@@ -328,30 +343,34 @@ function toggleWishlist(productId, button) {
     const icon = button.querySelector('i');
     const isInWishlist = icon.classList.contains('text-danger');
     
-    fetch(`/api/wishlist/toggle/${productId}`, {
+    $.ajax({
+        url: '/api/wishlist/toggle/' + productId,
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (data.data.in_wishlist) {
-                icon.classList.add('text-danger');
-                button.title = 'Remove from Wishlist';
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(data) {
+            if (data.success) {
+                if (data.data.in_wishlist) {
+                    icon.classList.add('text-danger');
+                    button.title = 'Remove from Wishlist';
+                } else {
+                    icon.classList.remove('text-danger');
+                    button.title = 'Add to Wishlist';
+                }
+                showToast(data.message, 'success');
             } else {
-                icon.classList.remove('text-danger');
-                button.title = 'Add to Wishlist';
+                showToast(data.message || 'Failed to update wishlist', 'error');
             }
-            showToast(data.message, 'success');
-        } else {
-            showToast(data.message || 'Failed to update wishlist', 'error');
+        },
+        error: function(xhr, status, error) {
+            let errorMessage = 'Failed to update wishlist';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            showToast(errorMessage, 'error');
+            console.error('Wishlist error:', xhr.responseJSON);
         }
-    })
-    .catch(error => {
-        showToast('An error occurred', 'error');
     });
 }
 

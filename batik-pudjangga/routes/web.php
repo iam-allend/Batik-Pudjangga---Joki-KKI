@@ -1,9 +1,5 @@
 <?php
 
-// ============================================
-// FILE: routes/web.php (FIXED VERSION)
-// ============================================
-
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ShopController;
@@ -73,19 +69,23 @@ Route::get('/product/{product}', [ProductController::class, 'show'])->name('prod
 
 Route::middleware(['auth'])->group(function () {
 
-    // Cart Routes
+    // Cart Routes - SIMPLE POST
     Route::prefix('cart')->name('cart.')->group(function () {
         Route::get('/', [CartController::class, 'index'])->name('index');
         Route::post('/add', [CartController::class, 'add'])->name('add');
+        Route::post('/add-inCard', [CartController::class, 'add_inCard'])->name('add.inCard');  
+        Route::post('/quick-add', [CartController::class, 'quickAdd'])->name('quick.add'); // AJAX
+        Route::get('/count', [CartController::class, 'getCount'])->name('count'); // AJAX
         Route::put('/update/{cart}', [CartController::class, 'update'])->name('update');
         Route::delete('/remove/{cart}', [CartController::class, 'remove'])->name('remove');
         Route::post('/checkout-selected', [CartController::class, 'checkoutSelected'])->name('checkout.selected');
     });
 
-    // Wishlist Routes
+    // Wishlist Routes - SIMPLE POST
     Route::prefix('wishlist')->name('wishlist.')->group(function () {
         Route::get('/', [WishlistController::class, 'index'])->name('index');
         Route::post('/add/{product}', [WishlistController::class, 'add'])->name('add');
+        Route::post('/toggle/{product}', [WishlistController::class, 'toggle'])->name('toggle'); // AJAX
         Route::delete('/remove/{product}', [WishlistController::class, 'remove'])->name('remove');
     });
 
@@ -98,15 +98,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
     });
 
-    // Order Routes (User)
-    Route::prefix('my-orders')->name('orders.')->group(function () {
+    // Order Routes
+    Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrderController::class, 'index'])->name('index');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('cancel');
     });
 
-    // User Profile Routes (Custom)
-    Route::prefix('my-profile')->name('profile.')->group(function () {
+    // Profile Routes
+    Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('index');
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::put('/update', [ProfileController::class, 'update'])->name('update');
@@ -168,11 +168,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports/products', [DashboardController::class, 'productsReport'])->name('reports.products');
 });
 
-/*
-|--------------------------------------------------------------------------
-| Laravel Breeze Default Routes (Keep for Auth)
-|--------------------------------------------------------------------------
-*/
 
 // Dashboard redirect to home or profile
 Route::get('/dashboard', function () {

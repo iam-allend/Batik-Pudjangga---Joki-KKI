@@ -125,4 +125,60 @@ class CartController extends Controller
 
         return redirect()->route('checkout.index');
     }
+
+
+    public function add_inCard(Request $request)
+    {
+        $request->validate([
+            'product_id' => ['required', 'exists:products,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'size' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $product = Product::findOrFail($request->product_id);
+
+        // Check stock
+        if ($product->stock < $request->quantity) {
+            return redirect()->back()->with('error', 'Not enough stock available!');
+        }
+
+        // Get current price (check if on sale)
+        $price = $product->is_sale && $product->sale_price 
+            ? $product->sale_price 
+            : $product->price;
+
+        // Check if item already exists in cart
+        $existingCart = Cart::where('user_id', Auth::id())
+            ->where('product_id', $product->id)
+            ->where('size', $request->size)
+            ->first();
+
+        if ($existingCart) {
+            // Update quantity
+            $newQuantity = $existingCart->quantity + $request->quantity;
+            
+            if ($newQuantity > $product->stock) {
+                return redirect()->back()->with('error', 'Cannot add more than available stock!');
+            }
+
+            $existingCart->update([
+                'quantity' => $newQuantity,
+                'notes' => $request->notes ?? $existingCart->notes
+            ]);
+        } else {
+            // Create new cart item
+            Cart::create([
+                'user_id' => Auth::id(),
+                'product_id' => $product->id,
+                'quantity' => $request->quantity,
+                'price' => $price,
+                'size' => $request->size,
+                'notes' => $request->notes,
+            ]);
+        }
+
+        return redirect()->route('shop.index')->with('success', 'Product added to cart!');
+    }
+
 }

@@ -9,7 +9,8 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
             <li class="breadcrumb-item"><a href="{{ route('shop.index') }}">Shop</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('shop.' . $product->category) }}">{{ ucfirst($product->category) }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('shop.' . $product->category) }}">{{
+                    ucfirst($product->category) }}</a></li>
             <li class="breadcrumb-item active">{{ $product->name }}</li>
         </ol>
     </nav>
@@ -20,17 +21,16 @@
             <div class="product-images">
                 <!-- Main Image -->
                 <div class="main-image mb-3">
-                    <img src="{{ asset('storage/products/' . $product->image) }}" 
-                         alt="{{ $product->name }}"
-                         id="mainProductImage"
-                         class="img-fluid rounded">
-                    
+                    <img src="{{ asset('storage/products/' . $product->image) }}" alt="{{ $product->name }}"
+                        id="mainProductImage" class="img-fluid rounded">
+
                     @if($product->is_sale)
-                        <span class="badge-sale">SALE {{ round((($product->price - $product->sale_price) / $product->price) * 100) }}% OFF</span>
+                    <span class="badge-sale">SALE {{ round((($product->price - $product->sale_price) / $product->price)
+                        * 100) }}% OFF</span>
                     @endif
-                    
+
                     @if($product->is_new)
-                        <span class="badge-new">NEW</span>
+                    <span class="badge-new">NEW</span>
                     @endif
                 </div>
 
@@ -40,19 +40,15 @@
                     <div class="row g-2">
                         <!-- Main Image Thumbnail -->
                         <div class="col-3">
-                            <img src="{{ asset('storage/products/' . $product->image) }}" 
-                                 alt="Thumbnail"
-                                 class="img-thumbnail thumbnail-item active"
-                                 onclick="changeMainImage(this.src)">
+                            <img src="{{ asset('storage/products/' . $product->image) }}" alt="Thumbnail"
+                                class="img-thumbnail thumbnail-item active" onclick="changeMainImage(this.src)">
                         </div>
-                        
+
                         <!-- Additional Images -->
                         @foreach($product->images as $image)
                         <div class="col-3">
-                            <img src="{{ asset('storage/' . $image->image_path) }}" 
-                                 alt="Thumbnail"
-                                 class="img-thumbnail thumbnail-item"
-                                 onclick="changeMainImage(this.src)">
+                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="Thumbnail"
+                                class="img-thumbnail thumbnail-item" onclick="changeMainImage(this.src)">
                         </div>
                         @endforeach
                     </div>
@@ -65,7 +61,7 @@
         <div class="col-lg-6">
             <div class="product-info">
                 <h1 class="product-title">{{ $product->name }}</h1>
-                
+
                 <!-- Category Badge -->
                 <p class="text-muted mb-3">
                     <i class="fas fa-tag me-2"></i>
@@ -73,39 +69,39 @@
                         {{ ucfirst($product->category) }}
                     </a>
                     @if($product->subcategory)
-                        / {{ $product->subcategory }}
+                    / {{ $product->subcategory }}
                     @endif
                 </p>
 
                 <!-- Price -->
                 <div class="product-price mb-4">
                     @if($product->is_sale && $product->sale_price)
-                        <h2 class="text-primary mb-0">
-                            Rp {{ number_format($product->sale_price, 0, ',', '.') }}
-                        </h2>
-                        <p class="text-muted mb-0">
-                            <del>Rp {{ number_format($product->price, 0, ',', '.') }}</del>
-                            <span class="badge bg-danger ms-2">
-                                Save Rp {{ number_format($product->price - $product->sale_price, 0, ',', '.') }}
-                            </span>
-                        </p>
+                    <h2 class="text-primary mb-0">
+                        Rp {{ number_format($product->sale_price, 0, ',', '.') }}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        <del>Rp {{ number_format($product->price, 0, ',', '.') }}</del>
+                        <span class="badge bg-danger ms-2">
+                            Save Rp {{ number_format($product->price - $product->sale_price, 0, ',', '.') }}
+                        </span>
+                    </p>
                     @else
-                        <h2 class="text-primary mb-0">
-                            Rp {{ number_format($product->price, 0, ',', '.') }}
-                        </h2>
+                    <h2 class="text-primary mb-0">
+                        Rp {{ number_format($product->price, 0, ',', '.') }}
+                    </h2>
                     @endif
                 </div>
 
                 <!-- Stock Status -->
                 <div class="mb-3">
                     @if($product->stock > 0)
-                        <span class="badge bg-success">
-                            <i class="fas fa-check-circle"></i> In Stock ({{ $product->stock }} available)
-                        </span>
+                    <span class="badge bg-success">
+                        <i class="fas fa-check-circle"></i> In Stock ({{ $product->stock }} available)
+                    </span>
                     @else
-                        <span class="badge bg-danger">
-                            <i class="fas fa-times-circle"></i> Out of Stock
-                        </span>
+                    <span class="badge bg-danger">
+                        <i class="fas fa-times-circle"></i> Out of Stock
+                    </span>
                     @endif
                 </div>
 
@@ -129,11 +125,9 @@
                         <div class="size-options">
                             @foreach($product->variants->unique('size') as $variant)
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="size" 
-                                       id="size_{{ $variant->size }}" 
-                                       value="{{ $variant->size }}"
-                                       {{ $loop->first ? 'checked' : '' }}
-                                       required>
+                                <input class="form-check-input" type="radio" name="size" id="size_{{ $variant->size }}"
+                                    value="{{ $variant->size }}" {{ $loop->first ? 'checked' : '' }}
+                                required>
                                 <label class="form-check-label size-label" for="size_{{ $variant->size }}">
                                     {{ $variant->size }}
                                 </label>
@@ -150,9 +144,8 @@
                             <button class="btn btn-outline-secondary" type="button" onclick="decreaseQty()">
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <input type="number" name="quantity" id="quantity" 
-                                   class="form-control text-center" 
-                                   value="1" min="1" max="{{ $product->stock }}" required>
+                            <input type="number" name="quantity" id="quantity" class="form-control text-center"
+                                value="1" min="1" max="{{ $product->stock }}" required>
                             <button class="btn btn-outline-secondary" type="button" onclick="increaseQty()">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -162,34 +155,33 @@
                     <!-- Notes (Optional) -->
                     <div class="mb-4">
                         <label class="form-label">Special Notes (Optional)</label>
-                        <textarea name="notes" class="form-control" rows="3" 
-                                  placeholder="Add custom request or notes..."></textarea>
+                        <textarea name="notes" class="form-control" rows="3"
+                            placeholder="Add custom request or notes..."></textarea>
                         <small class="text-muted">Example: color preference, special measurements, etc.</small>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="d-flex gap-2 mb-4">
                         @auth
-                            @if($product->stock > 0)
-                                <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
-                                    <i class="fas fa-shopping-cart me-2"></i> Add to Cart
-                                </button>
-                            @else
-                                <button type="button" class="btn btn-secondary btn-lg flex-grow-1" disabled>
-                                    Out of Stock
-                                </button>
-                            @endif
-
-                            <!-- Wishlist Button -->
-                            <button type="button" class="btn btn-outline-danger btn-lg" 
-                                    onclick="toggleWishlist({{ $product->id }})"
-                                    id="wishlistBtn">
-                                <i class="fas fa-heart {{ $isInWishlist ? 'text-danger' : '' }}"></i>
-                            </button>
+                        @if($product->stock > 0)
+                        <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
+                            <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+                        </button>
                         @else
-                            <a href="{{ route('login') }}" class="btn btn-primary btn-lg flex-grow-1">
-                                <i class="fas fa-sign-in-alt me-2"></i> Login to Purchase
-                            </a>
+                        <button type="button" class="btn btn-secondary btn-lg flex-grow-1" disabled>
+                            Out of Stock
+                        </button>
+                        @endif
+
+                        <!-- Wishlist Button -->
+                        <button type="button" class="btn btn-outline-danger btn-lg"
+                            onclick="toggleWishlist({{ $product->id }})" id="wishlistBtn">
+                            <i class="fas fa-heart {{ $isInWishlist ? 'text-danger' : '' }}"></i>
+                        </button>
+                        @else
+                        <a href="{{ route('login') }}" class="btn btn-primary btn-lg flex-grow-1">
+                            <i class="fas fa-sign-in-alt me-2"></i> Login to Purchase
+                        </a>
                         @endauth
                     </div>
                 </form>
@@ -201,7 +193,7 @@
                             <strong>SKU:</strong> BP-{{ str_pad($product->id, 5, '0', STR_PAD_LEFT) }}
                         </li>
                         <li class="mb-2">
-                            <strong>Category:</strong> 
+                            <strong>Category:</strong>
                             <a href="{{ route('shop.' . $product->category) }}">{{ ucfirst($product->category) }}</a>
                         </li>
                         @if($product->subcategory)
@@ -216,16 +208,16 @@
                 <div class="share-product mt-4">
                     <p class="mb-2"><strong>Share this product:</strong></p>
                     <div class="d-flex gap-2">
-                        <a href="https://www.facebook.com/sharer/sharer.php?u={{ url()->current() }}" 
-                           target="_blank" class="btn btn-sm btn-outline-primary">
+                        <a href="https://www.facebook.com/sharer/sharer.php?u={{ url()->current() }}" target="_blank"
+                            class="btn btn-sm btn-outline-primary">
                             <i class="fab fa-facebook-f"></i>
                         </a>
-                        <a href="https://twitter.com/intent/tweet?url={{ url()->current() }}&text={{ $product->name }}" 
-                           target="_blank" class="btn btn-sm btn-outline-info">
+                        <a href="https://twitter.com/intent/tweet?url={{ url()->current() }}&text={{ $product->name }}"
+                            target="_blank" class="btn btn-sm btn-outline-info">
                             <i class="fab fa-twitter"></i>
                         </a>
-                        <a href="https://wa.me/?text={{ $product->name }} {{ url()->current() }}" 
-                           target="_blank" class="btn btn-sm btn-outline-success">
+                        <a href="https://wa.me/?text={{ $product->name }} {{ url()->current() }}" target="_blank"
+                            class="btn btn-sm btn-outline-success">
                             <i class="fab fa-whatsapp"></i>
                         </a>
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyLink()">
@@ -253,102 +245,102 @@
 </div>
 
 <style>
-.product-images .main-image {
-    position: relative;
-    overflow: hidden;
-}
+    .product-images .main-image {
+        position: relative;
+        overflow: hidden;
+    }
 
-.product-images .main-image img {
-    width: 100%;
-    height: auto;
-    max-height: 600px;
-    object-fit: contain;
-}
+    .product-images .main-image img {
+        width: 100%;
+        height: auto;
+        max-height: 600px;
+        object-fit: contain;
+    }
 
-.badge-sale {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background: #dc3545;
-    color: white;
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-weight: bold;
-    z-index: 1;
-}
+    .badge-sale {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: #dc3545;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        z-index: 1;
+    }
 
-.badge-new {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: #28a745;
-    color: white;
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-weight: bold;
-    z-index: 1;
-}
+    .badge-new {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        z-index: 1;
+    }
 
-.thumbnail-item {
-    cursor: pointer;
-    transition: all 0.3s;
-    border: 2px solid #dee2e6;
-    height: 100px;
-    object-fit: cover;
-}
+    .thumbnail-item {
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid #dee2e6;
+        height: 100px;
+        object-fit: cover;
+    }
 
-.thumbnail-item:hover,
-.thumbnail-item.active {
-    border-color: #0d6efd;
-    transform: scale(1.05);
-}
+    .thumbnail-item:hover,
+    .thumbnail-item.active {
+        border-color: #0d6efd;
+        transform: scale(1.05);
+    }
 
-.product-title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-}
+    .product-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
 
-.product-price h2 {
-    font-size: 2.5rem;
-    font-weight: 700;
-}
+    .product-price h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
 
-.size-label {
-    padding: 10px 20px;
-    border: 2px solid #dee2e6;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
+    .size-label {
+        padding: 10px 20px;
+        border: 2px solid #dee2e6;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
 
-.form-check-input:checked + .size-label {
-    background: #0d6efd;
-    color: white;
-    border-color: #0d6efd;
-}
+    .form-check-input:checked+.size-label {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
 
-.quantity-input input {
-    border-left: none;
-    border-right: none;
-}
+    .quantity-input input {
+        border-left: none;
+        border-right: none;
+    }
 
-.quantity-input button {
-    width: 40px;
-}
+    .quantity-input button {
+        width: 40px;
+    }
 
-.product-meta a {
-    color: #0d6efd;
-    text-decoration: none;
-}
+    .product-meta a {
+        color: #0d6efd;
+        text-decoration: none;
+    }
 
-.product-meta a:hover {
-    text-decoration: underline;
-}
+    .product-meta a:hover {
+        text-decoration: underline;
+    }
 </style>
 
 <script>
-// Change Main Image
+    // Change Main Image
 function changeMainImage(src) {
     document.getElementById('mainProductImage').src = src;
     

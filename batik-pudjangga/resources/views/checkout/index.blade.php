@@ -3,300 +3,295 @@
 @section('title', 'Checkout - Batik Pudjangga')
 
 @section('content')
-<div class="container py-5">
-    <h2 class="mb-4">
-        <i class="fas fa-credit-card me-2"></i>Checkout
-    </h2>
-
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show">
-            {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    <form action="{{ route('checkout.process') }}" method="POST" id="checkoutForm">
-        @csrf
-        <input type="hidden" name="selected_items" value="{{ implode(',', $selectedItems) }}">
-
-        <div class="row">
-            <!-- Left Column: Shipping & Payment -->
-            <div class="col-lg-8 mb-4">
-                <!-- Shipping Address -->
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Shipping Address</h5>
-                        @if($addresses->count() > 0)
-                            <a href="{{ route('address.create') }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-plus"></i> Add New
-                            </a>
-                        @endif
-                    </div>
-                    <div class="card-body">
-                        @if($addresses->count() > 0)
-                            @foreach($addresses as $address)
-                            <div class="form-check address-card {{ $address->is_default ? 'selected' : '' }}">
-                                <input class="form-check-input" 
-                                       type="radio" 
-                                       name="address_id" 
-                                       id="address_{{ $address->id }}" 
-                                       value="{{ $address->id }}"
-                                       data-province="{{ $address->province }}"
-                                       {{ $address->is_default ? 'checked' : '' }}
-                                       onchange="updateShippingCost()"
-                                       required>
-                                <label class="form-check-label w-100" for="address_{{ $address->id }}">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <strong>{{ $address->recipient_name }}</strong>
-                                            @if($address->is_default)
-                                                <span class="badge bg-primary ms-2">Default</span>
-                                            @endif
-                                            <p class="mb-0 text-muted">{{ $address->phone }}</p>
-                                            <p class="mb-0">
-                                                {{ $address->address }}<br>
-                                                {{ $address->city }}, {{ $address->province }}<br>
-                                                {{ $address->postal_code }}
-                                            </p>
+<section class="checkout-section py-5">
+    <div class="container">
+        <h2 class="mb-4">Checkout</h2>
+        
+        <form action="{{ route('checkout.process') }}" method="POST" id="checkoutForm">
+            @csrf
+            
+            <div class="row">
+                <!-- Shipping Information -->
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-truck me-2"></i>Shipping Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Saved Addresses -->
+                            @if($addresses->count() > 0)
+                                <div class="mb-4">
+                                    <h6>Select Saved Address</h6>
+                                    @foreach($addresses as $address)
+                                        <div class="form-check address-option mb-3">
+                                            <input class="form-check-input" type="radio" 
+                                                   name="address_id" value="{{ $address->id }}"
+                                                   id="address{{ $address->id }}"
+                                                   data-name="{{ $address->recipient_name }}"
+                                                   data-address="{{ $address->address }}"
+                                                   data-city="{{ $address->city }}"
+                                                   data-province="{{ $address->province }}"
+                                                   data-postal="{{ $address->postal_code }}"
+                                                   data-phone="{{ $address->phone }}"
+                                                   {{ $address->is_default ? 'checked' : '' }}
+                                                   onchange="fillAddress(this)">
+                                            <label class="form-check-label w-100" for="address{{ $address->id }}">
+                                                <strong>{{ $address->recipient_name }}</strong>
+                                                @if($address->is_default)
+                                                    <span class="badge bg-success ms-2">Default</span>
+                                                @endif
+                                                <br>
+                                                <small>{{ $address->address }}, {{ $address->city }}, {{ $address->province }} {{ $address->postal_code }}</small>
+                                                <br>
+                                                <small>{{ $address->phone }}</small>
+                                            </label>
                                         </div>
-                                    </div>
+                                    @endforeach
+                                    <hr>
+                                    <p class="text-muted">Or enter new address below:</p>
+                                </div>
+                            @endif
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Recipient Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="recipient_name" 
+                                           id="recipient_name" value="{{ old('recipient_name', $defaultAddress->recipient_name ?? '') }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="phone" 
+                                           id="phone" value="{{ old('phone', $defaultAddress->phone ?? '') }}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Full Address <span class="text-danger">*</span></label>
+                                <textarea class="form-control" name="address" id="address" 
+                                          rows="3" required>{{ old('address', $defaultAddress->address ?? '') }}</textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">City <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="city" 
+                                           id="city" value="{{ old('city', $defaultAddress->city ?? '') }}" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Province <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="province" id="province" 
+                                            onchange="updateShipping()" required>
+                                        <option value="">Select Province</option>
+                                        @foreach($provinces as $prov)
+                                            <option value="{{ $prov->province }}" 
+                                                    data-regular="{{ $prov->cost_regular }}"
+                                                    data-express="{{ $prov->cost_express }}"
+                                                    {{ old('province', $defaultAddress->province ?? '') == $prov->province ? 'selected' : '' }}>
+                                                {{ $prov->province }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Postal Code <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="postal_code" 
+                                           id="postal_code" value="{{ old('postal_code', $defaultAddress->postal_code ?? '') }}" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Shipping Method -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-shipping-fast me-2"></i>Shipping Method</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="shipping_method" 
+                                       value="regular" id="regular" checked onchange="updateShipping()">
+                                <label class="form-check-label" for="regular">
+                                    <strong>Regular Shipping</strong>
+                                    <span class="text-primary ms-2" id="regular-cost">Rp 0</span><br>
+                                    <small class="text-muted">Estimated delivery: 3-5 business days</small>
                                 </label>
                             </div>
-                            @endforeach
-                        @else
-                            <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                You don't have any saved addresses.
-                                <a href="{{ route('address.create') }}" class="alert-link">Add one now</a>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="shipping_method" 
+                                       value="express" id="express" onchange="updateShipping()">
+                                <label class="form-check-label" for="express">
+                                    <strong>Express Shipping</strong>
+                                    <span class="text-primary ms-2" id="express-cost">Rp 0</span><br>
+                                    <small class="text-muted">Estimated delivery: 1-2 business days</small>
+                                </label>
                             </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- Shipping Method -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Shipping Method</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" 
-                                   type="radio" 
-                                   name="shipping_method" 
-                                   id="shipping_regular" 
-                                   value="regular"
-                                   checked
-                                   onchange="updateShippingCost()">
-                            <label class="form-check-label w-100" for="shipping_regular">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <strong>Regular Shipping</strong>
-                                        <p class="text-muted mb-0">Estimated 5-7 business days</p>
-                                    </div>
-                                    <strong id="regularCost">Calculating...</strong>
-                                </div>
-                            </label>
                         </div>
-                        
-                        <div class="form-check">
-                            <input class="form-check-input" 
-                                   type="radio" 
-                                   name="shipping_method" 
-                                   id="shipping_express" 
-                                   value="express"
-                                   onchange="updateShippingCost()">
-                            <label class="form-check-label w-100" for="shipping_express">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <strong>Express Shipping</strong>
-                                        <p class="text-muted mb-0">Estimated 2-3 business days</p>
-                                    </div>
-                                    <strong id="expressCost">Calculating...</strong>
-                                </div>
-                            </label>
+                    </div>
+                    
+                    <!-- Payment Method -->
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Payment Method</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="payment_method" 
+                                       value="transfer" id="transfer" checked>
+                                <label class="form-check-label" for="transfer">
+                                    <strong>Bank Transfer</strong><br>
+                                    <small class="text-muted">Pay via bank transfer</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method" 
+                                       value="cod" id="cod">
+                                <label class="form-check-label" for="cod">
+                                    <strong>Cash on Delivery (COD)</strong><br>
+                                    <small class="text-muted">Pay when you receive the product</small>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Payment Method -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Payment Method</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" 
-                                   type="radio" 
-                                   name="payment_method" 
-                                   id="payment_transfer" 
-                                   value="transfer"
-                                   checked
-                                   required>
-                            <label class="form-check-label w-100" for="payment_transfer">
-                                <strong>Bank Transfer</strong>
-                                <p class="text-muted mb-0">Transfer to our bank account</p>
-                            </label>
+                
+                <!-- Order Summary -->
+                <div class="col-lg-4">
+                    <div class="card sticky-top" style="top: 100px;">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-shopping-bag me-2"></i>Order Summary</h5>
                         </div>
-                        
-                        <div class="form-check">
-                            <input class="form-check-input" 
-                                   type="radio" 
-                                   name="payment_method" 
-                                   id="payment_cod" 
-                                   value="cod">
-                            <label class="form-check-label w-100" for="payment_cod">
-                                <strong>Cash on Delivery (COD)</strong>
-                                <p class="text-muted mb-0">Pay when you receive your order</p>
-                            </label>
+                        <div class="card-body">
+                            <!-- Cart Items -->
+                            <div class="order-items mb-3">
+                                @foreach($cartItems as $item)
+                                    <div class="order-item d-flex mb-3">
+                                        <img src="{{ asset('storage/products/' . $item->product->image) }}" 
+                                             alt="{{ $item->product->name }}"
+                                             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                                        <div class="ms-3 flex-grow-1">
+                                            <h6 class="mb-1">{{ $item->product->name }}</h6>
+                                            <small class="text-muted">
+                                                @if($item->size) Size: {{ $item->size }}<br> @endif
+                                                Qty: {{ $item->quantity }}
+                                            </small>
+                                        </div>
+                                        <strong>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</strong>
+                                    </div>
+                                @endforeach
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Price Summary -->
+                            <div class="price-summary">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Subtotal:</span>
+                                    <strong>Rp {{ number_format($subtotal, 0, ',', '.') }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Shipping Cost:</span>
+                                    <strong id="shippingDisplay">Rp 0</strong>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between mb-3">
+                                    <strong>Total:</strong>
+                                    <strong class="text-primary" id="totalDisplay">
+                                        Rp {{ number_format($subtotal, 0, ',', '.') }}
+                                    </strong>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100" id="btnSubmit">
+                                <i class="fas fa-lock me-2"></i>Place Order
+                            </button>
+                            
+                            <a href="{{ route('cart.index') }}" class="btn btn-outline-secondary w-100 mt-2">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Cart
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
+        </form>
+    </div>
+</section>
 
-            <!-- Right Column: Order Summary -->
-            <div class="col-lg-4">
-                <div class="card sticky-top" style="top: 100px;">
-                    <div class="card-header">
-                        <h5 class="mb-0">Order Summary</h5>
-                    </div>
-                    <div class="card-body">
-                        <!-- Order Items -->
-                        <div class="order-items mb-3">
-                            @foreach($cartItems as $item)
-                            <div class="d-flex mb-2">
-                                <img src="{{ asset('storage/products/' . $item->product->image) }}" 
-                                     alt="{{ $item->product->name }}"
-                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">
-                                <div class="ms-2 flex-grow-1">
-                                    <p class="mb-0">
-                                        <small>{{ $item->product->name }}</small>
-                                    </p>
-                                    <small class="text-muted">
-                                        {{ $item->quantity }}x Rp {{ number_format($item->price, 0, ',', '.') }}
-                                    </small>
-                                </div>
-                                <strong>
-                                    <small>Rp {{ number_format($item->price * $item->quantity, 0, ',', '.') }}</small>
-                                </strong>
-                            </div>
-                            @endforeach
-                        </div>
-
-                        <hr>
-
-                        <!-- Price Breakdown -->
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Subtotal:</span>
-                            <strong>Rp {{ number_format($subtotal, 0, ',', '.') }}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span>Shipping:</span>
-                            <strong id="shippingCostDisplay">Calculating...</strong>
-                        </div>
-
-                        <hr>
-
-                        <div class="d-flex justify-content-between mb-4">
-                            <h5>Total:</h5>
-                            <h5 class="text-primary" id="grandTotal">Rp {{ number_format($subtotal, 0, ',', '.') }}</h5>
-                        </div>
-
-                        <input type="hidden" name="shipping_cost" id="shippingCostInput" value="0">
-
-                        <button type="submit" class="btn btn-primary w-100 mb-2" id="placeOrderBtn">
-                            <i class="fas fa-check-circle me-2"></i>Place Order
-                        </button>
-
-                        <a href="{{ route('cart.index') }}" class="btn btn-outline-secondary w-100">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Cart
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
-</div>
-
-<style>
-.address-card {
-    padding: 15px;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.address-card:hover {
-    border-color: #0d6efd;
-    background: #f8f9fa;
-}
-
-.address-card.selected {
-    border-color: #0d6efd;
-    background: #e7f1ff;
-}
-
-.address-card input[type="radio"]:checked + label {
-    color: #0d6efd;
-}
-</style>
-
+@push('scripts')
 <script>
 const subtotal = {{ $subtotal }};
-let shippingCost = 0;
 
-// Update Shipping Cost based on selected address and method
-function updateShippingCost() {
-    const selectedAddress = document.querySelector('input[name="address_id"]:checked');
-    const selectedMethod = document.querySelector('input[name="shipping_method"]:checked');
+function fillAddress(radio) {
+    if (radio.checked) {
+        document.getElementById('recipient_name').value = radio.dataset.name;
+        document.getElementById('address').value = radio.dataset.address;
+        document.getElementById('city').value = radio.dataset.city;
+        document.getElementById('province').value = radio.dataset.province;
+        document.getElementById('postal_code').value = radio.dataset.postal;
+        document.getElementById('phone').value = radio.dataset.phone;
+        updateShipping();
+    }
+}
+
+function updateShipping() {
+    const provinceSelect = document.getElementById('province');
+    const selectedOption = provinceSelect.options[provinceSelect.selectedIndex];
     
-    if (!selectedAddress) {
-        document.getElementById('placeOrderBtn').disabled = true;
+    if (!selectedOption.value) {
+        document.getElementById('shippingDisplay').textContent = 'Rp 0';
+        document.getElementById('totalDisplay').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
+        document.getElementById('regular-cost').textContent = 'Rp 0';
+        document.getElementById('express-cost').textContent = 'Rp 0';
         return;
     }
     
-    const province = selectedAddress.getAttribute('data-province');
-    const method = selectedMethod ? selectedMethod.value : 'regular';
+    const regularCost = parseInt(selectedOption.dataset.regular);
+    const expressCost = parseInt(selectedOption.dataset.express);
     
-    // Fetch shipping cost from API
-    fetch(`/api/shipping/get-cost?province=${encodeURIComponent(province)}&method=${method}`, {
-        headers: {
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            shippingCost = data.cost;
-            
-            // Update display
-            document.getElementById('regularCost').textContent = formatRupiah(data.regular_cost);
-            document.getElementById('expressCost').textContent = formatRupiah(data.express_cost);
-            document.getElementById('shippingCostDisplay').textContent = formatRupiah(shippingCost);
-            document.getElementById('shippingCostInput').value = shippingCost;
-            
-            // Update grand total
-            const grandTotal = subtotal + shippingCost;
-            document.getElementById('grandTotal').textContent = formatRupiah(grandTotal);
-            
-            // Enable place order button
-            document.getElementById('placeOrderBtn').disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
+    // Update cost labels
+    document.getElementById('regular-cost').textContent = 'Rp ' + regularCost.toLocaleString('id-ID');
+    document.getElementById('express-cost').textContent = 'Rp ' + expressCost.toLocaleString('id-ID');
+    
+    // Get selected shipping method
+    const method = document.querySelector('input[name="shipping_method"]:checked').value;
+    const shippingCost = method === 'express' ? expressCost : regularCost;
+    
+    // Update display
+    document.getElementById('shippingDisplay').textContent = 'Rp ' + shippingCost.toLocaleString('id-ID');
+    
+    const total = subtotal + shippingCost;
+    document.getElementById('totalDisplay').textContent = 'Rp ' + total.toLocaleString('id-ID');
 }
 
-function formatRupiah(amount) {
-    return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
-}
-
-// Initialize
+// Update on page load
 document.addEventListener('DOMContentLoaded', function() {
-    updateShippingCost();
+    updateShipping();
+});
+
+// Prevent double submission
+document.getElementById('checkoutForm').addEventListener('submit', function() {
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
 });
 </script>
+@endpush
+
+<style>
+.address-option {
+    border: 2px solid #e0e0e0;
+    padding: 15px;
+    border-radius: 10px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.address-option:has(input:checked) {
+    border-color: var(--primary-color);
+    background: var(--light-color);
+}
+
+.address-option:hover {
+    border-color: var(--primary-color);
+}
+</style>
 @endsection

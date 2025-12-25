@@ -12,202 +12,253 @@ class CartController extends Controller
 {
     public function index()
     {
-        $cartItems = auth()->user()->carts()
-            ->with('product')
-            ->get();
+        try {
+            $cartItems = auth()->user()->carts()
+                ->with('product')
+                ->get();
 
-        $subtotal = $cartItems->sum('subtotal');
+            $subtotal = $cartItems->sum('subtotal');
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'items' => $cartItems,
-                'subtotal' => $subtotal,
-                'count' => $cartItems->count(),
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'items' => $cartItems,
+                    'subtotal' => $subtotal,
+                    'count' => $cartItems->count(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load cart: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function add(Request $request)
     {
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1',
-            'size' => 'nullable|string',
-            'notes' => 'nullable|string',
-        ]);
+        try {
+            $request->validate([
+                'product_id' => 'required|exists:products,id',
+                'quantity' => 'nullable|integer|min:1',
+                'size' => 'nullable|string',
+                'notes' => 'nullable|string',
+            ]);
 
-        $product = Product::findOrFail($request->product_id);
+            $product = Product::findOrFail($request->product_id);
+            $quantity = $request->quantity ?? 1;
 
-        // Check stock
-        if ($product->stock < $request->quantity) {
+            // Check stock
+            if ($product->stock < $quantity) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient stock available. Only ' . $product->stock . ' items left.',
+                ], 400);
+            }
+
+            // Check if item already in cart with same size
+            $cartItem = Cart::where('user_id', auth()->id())
+                ->where('product_id', $product->id)
+                ->where('size', $request->size)
+                ->first();
+
+            if ($cartItem) {
+                $newQuantity = $cartItem->quantity + $quantity;
+                
+                if ($product->stock < $newQuantity) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cannot add more. Only ' . $product->stock . ' items available.',
+                    ], 400);
+                }
+
+                $cartItem->update([
+                    'quantity' => $newQuantity,
+                    'notes' => $request->notes ?? $cartItem->notes,
+                ]);
+            } else {
+                $cartItem = Cart::create([
+                    'user_id' => auth()->id(),
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'price' => $product->current_price,
+                    'size' => $request->size,
+                    'notes' => $request->notes,
+                ]);
+            }
+
+            // Get updated cart count
+            $cartCount = auth()->user()->carts()->count();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product added to cart successfully!',
+                'data' => [
+                    'cart_count' => $cartCount,
+                    'item' => $cartItem->load('product'),
+                ],
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient stock available.',
-            ], 400);
+                'message' => 'Failed to add to cart: ' . $e->getMessage(),
+            ], 500);
         }
+    }
 
-        // Check if item already in cart
-        $cartItem = Cart::where('user_id', auth()->id())
-            ->where('product_id', $product->id)
-            ->where('size', $request->size)
-            ->first();
+    public function update(Request $request, Cart $cart)
+    {
+        try {
+            // Check ownership
+            if ($cart->user_id !== auth()->id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized.',
+                ], 403);
+            }
 
-        if ($cartItem) {
-            $newQuantity = $cartItem->quantity + $request->quantity;
-            
-            if ($product->stock < $newQuantity) {
+            $request->validate([
+                'quantity' => 'required|integer|min:1',
+            ]);
+
+            // Check stock
+            if ($cart->product->stock < $request->quantity) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Insufficient stock available.',
                 ], 400);
             }
 
-            $cartItem->update([
-                'quantity' => $newQuantity,
-                'notes' => $request->notes ?? $cartItem->notes,
+            $cart->update(['quantity' => $request->quantity]);
+
+            // Get updated subtotal
+            $cartItems = auth()->user()->carts;
+            $subtotal = $cartItems->sum('subtotal');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart updated successfully!',
+                'data' => [
+                    'item' => $cart->fresh(),
+                    'subtotal' => $subtotal,
+                ],
             ]);
-        } else {
-            $cartItem = Cart::create([
-                'user_id' => auth()->id(),
-                'product_id' => $product->id,
-                'quantity' => $request->quantity,
-                'price' => $product->current_price,
-                'size' => $request->size,
-                'notes' => $request->notes,
-            ]);
-        }
-
-        // Get updated cart count
-        $cartCount = auth()->user()->carts()->count();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Product added to cart successfully!',
-            'data' => [
-                'cart_count' => $cartCount,
-                'item' => $cartItem->load('product'),
-            ],
-        ]);
-    }
-
-    public function update(Request $request, Cart $cart)
-    {
-        // Check ownership
-        if ($cart->user_id !== auth()->id()) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized.',
-            ], 403);
+                'message' => 'Failed to update cart: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $request->validate([
-            'quantity' => 'required|integer|min:1',
-        ]);
-
-        // Check stock
-        if ($cart->product->stock < $request->quantity) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Insufficient stock available.',
-            ], 400);
-        }
-
-        $cart->update(['quantity' => $request->quantity]);
-
-        // Get updated subtotal
-        $cartItems = auth()->user()->carts;
-        $subtotal = $cartItems->sum('subtotal');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Cart updated successfully!',
-            'data' => [
-                'item' => $cart->fresh(),
-                'subtotal' => $subtotal,
-            ],
-        ]);
     }
 
     public function remove(Cart $cart)
     {
-        // Check ownership
-        if ($cart->user_id !== auth()->id()) {
+        try {
+            // Check ownership
+            if ($cart->user_id !== auth()->id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized.',
+                ], 403);
+            }
+
+            $cart->delete();
+
+            // Get updated cart data
+            $cartItems = auth()->user()->carts;
+            $subtotal = $cartItems->sum('subtotal');
+            $cartCount = $cartItems->count();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item removed from cart!',
+                'data' => [
+                    'cart_count' => $cartCount,
+                    'subtotal' => $subtotal,
+                ],
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized.',
-            ], 403);
+                'message' => 'Failed to remove item: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $cart->delete();
-
-        // Get updated cart data
-        $cartItems = auth()->user()->carts;
-        $subtotal = $cartItems->sum('subtotal');
-        $cartCount = $cartItems->count();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Item removed from cart!',
-            'data' => [
-                'cart_count' => $cartCount,
-                'subtotal' => $subtotal,
-            ],
-        ]);
     }
 
     public function count()
     {
-        $count = auth()->user()->carts()->count();
+        try {
+            $count = auth()->user()->carts()->count();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'count' => $count,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'count' => $count,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get cart count: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     // Wishlist toggle
     public function toggleWishlist(Product $product)
     {
-        $wishlist = Wishlist::where('user_id', auth()->id())
-            ->where('product_id', $product->id)
-            ->first();
+        try {
+            $wishlist = Wishlist::where('user_id', auth()->id())
+                ->where('product_id', $product->id)
+                ->first();
 
-        if ($wishlist) {
-            $wishlist->delete();
-            $inWishlist = false;
-            $message = 'Product removed from wishlist!';
-        } else {
-            Wishlist::create([
-                'user_id' => auth()->id(),
-                'product_id' => $product->id,
+            if ($wishlist) {
+                $wishlist->delete();
+                $inWishlist = false;
+                $message = 'Removed from wishlist!';
+            } else {
+                Wishlist::create([
+                    'user_id' => auth()->id(),
+                    'product_id' => $product->id,
+                ]);
+                $inWishlist = true;
+                $message = 'Added to wishlist!';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'in_wishlist' => $inWishlist,
+                ],
             ]);
-            $inWishlist = true;
-            $message = 'Product added to wishlist!';
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update wishlist: ' . $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => [
-                'in_wishlist' => $inWishlist,
-            ],
-        ]);
     }
 
     public function checkWishlist(Product $product)
     {
-        $inWishlist = Wishlist::where('user_id', auth()->id())
-            ->where('product_id', $product->id)
-            ->exists();
+        try {
+            $inWishlist = Wishlist::where('user_id', auth()->id())
+                ->where('product_id', $product->id)
+                ->exists();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'in_wishlist' => $inWishlist,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'in_wishlist' => $inWishlist,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check wishlist: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
+

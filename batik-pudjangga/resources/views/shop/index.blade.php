@@ -20,6 +20,8 @@
                 <p class="text-muted">Showing {{ $products->count() }} of {{ $products->total() }} products</p>
             </div>
         </div>
+
+
     </div>
 </section>
 
