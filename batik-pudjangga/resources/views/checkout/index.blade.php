@@ -216,63 +216,117 @@
     </div>
 </section>
 
+
 @push('scripts')
 <script>
-const subtotal = {{ $subtotal }};
+    const subtotal = {{ $subtotal }};
 
-function fillAddress(radio) {
-    if (radio.checked) {
-        document.getElementById('recipient_name').value = radio.dataset.name;
-        document.getElementById('address').value = radio.dataset.address;
-        document.getElementById('city').value = radio.dataset.city;
-        document.getElementById('province').value = radio.dataset.province;
-        document.getElementById('postal_code').value = radio.dataset.postal;
-        document.getElementById('phone').value = radio.dataset.phone;
+    function fillAddress(radio) {
+        if (radio.checked) {
+            document.getElementById('recipient_name').value = radio.dataset.name || '';
+            document.getElementById('address').value = radio.dataset.address || '';
+            document.getElementById('city').value = radio.dataset.city || '';
+            document.getElementById('province').value = radio.dataset.province || '';
+            document.getElementById('postal_code').value = radio.dataset.postal || '';
+            document.getElementById('phone').value = radio.dataset.phone || '';
+            updateShipping();
+        }
+    }
+
+    function updateShipping() {
+        const provinceSelect = document.getElementById('province');
+        const selectedOption = provinceSelect.options[provinceSelect.selectedIndex];
+        
+        // CRITICAL FIX: Check if province is selected
+        if (!selectedOption || !selectedOption.value) {
+            console.log('No province selected');
+            document.getElementById('shippingDisplay').textContent = 'Rp 0';
+            document.getElementById('totalDisplay').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
+            document.getElementById('regular-cost').textContent = 'Rp 0';
+            document.getElementById('express-cost').textContent = 'Rp 0';
+            return;
+        }
+        
+        // CRITICAL FIX: Get values with fallback to 0
+        const regularCostStr = selectedOption.dataset.regular || '0';
+        const expressCostStr = selectedOption.dataset.express || '0';
+        
+        // CRITICAL FIX: Parse and validate
+        const regularCost = parseInt(regularCostStr) || 0;
+        const expressCost = parseInt(expressCostStr) || 0;
+        
+        // Debug log (remove in production)
+        console.log('Selected Province:', selectedOption.value);
+        console.log('Regular Cost:', regularCost);
+        console.log('Express Cost:', expressCost);
+        
+        // CRITICAL FIX: Check if costs are valid numbers
+        if (regularCost === 0 || expressCost === 0) {
+            console.error('Invalid shipping costs for province:', selectedOption.value);
+            alert('Shipping cost not available for this province. Please contact admin.');
+            return;
+        }
+        
+        // Update cost labels
+        document.getElementById('regular-cost').textContent = 'Rp ' + regularCost.toLocaleString('id-ID');
+        document.getElementById('express-cost').textContent = 'Rp ' + expressCost.toLocaleString('id-ID');
+        
+        // Get selected shipping method
+        const methodRadio = document.querySelector('input[name="shipping_method"]:checked');
+        if (!methodRadio) {
+            console.error('No shipping method selected');
+            return;
+        }
+        
+        const method = methodRadio.value;
+        const shippingCost = method === 'express' ? expressCost : regularCost;
+        
+        // Update display
+        document.getElementById('shippingDisplay').textContent = 'Rp ' + shippingCost.toLocaleString('id-ID');
+        
+        const total = subtotal + shippingCost;
+        document.getElementById('totalDisplay').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    }
+
+    // Update on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, updating shipping...');
+        console.log('Subtotal:', subtotal);
+        
+        // Add event listeners to shipping method radios
+        const shippingRadios = document.querySelectorAll('input[name="shipping_method"]');
+        shippingRadios.forEach(radio => {
+            radio.addEventListener('change', updateShipping);
+        });
+        
+        // Initial update
         updateShipping();
-    }
-}
+    });
 
-function updateShipping() {
-    const provinceSelect = document.getElementById('province');
-    const selectedOption = provinceSelect.options[provinceSelect.selectedIndex];
-    
-    if (!selectedOption.value) {
-        document.getElementById('shippingDisplay').textContent = 'Rp 0';
-        document.getElementById('totalDisplay').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
-        document.getElementById('regular-cost').textContent = 'Rp 0';
-        document.getElementById('express-cost').textContent = 'Rp 0';
-        return;
-    }
-    
-    const regularCost = parseInt(selectedOption.dataset.regular);
-    const expressCost = parseInt(selectedOption.dataset.express);
-    
-    // Update cost labels
-    document.getElementById('regular-cost').textContent = 'Rp ' + regularCost.toLocaleString('id-ID');
-    document.getElementById('express-cost').textContent = 'Rp ' + expressCost.toLocaleString('id-ID');
-    
-    // Get selected shipping method
-    const method = document.querySelector('input[name="shipping_method"]:checked').value;
-    const shippingCost = method === 'express' ? expressCost : regularCost;
-    
-    // Update display
-    document.getElementById('shippingDisplay').textContent = 'Rp ' + shippingCost.toLocaleString('id-ID');
-    
-    const total = subtotal + shippingCost;
-    document.getElementById('totalDisplay').textContent = 'Rp ' + total.toLocaleString('id-ID');
-}
+    // Prevent double submission
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        const btn = document.getElementById('btnSubmit');
+        
+        // Final validation before submit
+        const provinceSelect = document.getElementById('province');
+        if (!provinceSelect.value) {
+            e.preventDefault();
+            alert('Please select a province!');
+            return false;
+        }
+        
+        const shippingDisplay = document.getElementById('shippingDisplay').textContent;
+        if (shippingDisplay === 'Rp 0' || shippingDisplay.includes('NaN')) {
+            e.preventDefault();
+            alert('Please select a valid province with shipping cost!');
+            return false;
+        }
+        
+        // Disable button
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+    });
 
-// Update on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateShipping();
-});
-
-// Prevent double submission
-document.getElementById('checkoutForm').addEventListener('submit', function() {
-    const btn = document.getElementById('btnSubmit');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-});
 </script>
 @endpush
 

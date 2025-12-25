@@ -7,29 +7,29 @@ use Illuminate\Database\Seeder;
 
 class ShippingZoneSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
         $zones = [
-            // Zone 1 - Jabodetabek
+            // Zone 1 - Jakarta & Surrounding
             ['province' => 'DKI Jakarta', 'zone' => 1, 'cost_regular' => 12000, 'cost_express' => 22000],
             ['province' => 'Jawa Barat', 'zone' => 1, 'cost_regular' => 12000, 'cost_express' => 22000],
             ['province' => 'Banten', 'zone' => 1, 'cost_regular' => 12000, 'cost_express' => 22000],
             
-            // Zone 2 - Jawa Tengah & Timur
+            // Zone 2 - Central & East Java
             ['province' => 'Jawa Tengah', 'zone' => 2, 'cost_regular' => 15000, 'cost_express' => 25000],
             ['province' => 'DI Yogyakarta', 'zone' => 2, 'cost_regular' => 15000, 'cost_express' => 25000],
             ['province' => 'Jawa Timur', 'zone' => 2, 'cost_regular' => 15000, 'cost_express' => 25000],
             
-            // Zone 3 - Sumatera & Bali
+            // Zone 3 - Sumatra & Bali
             ['province' => 'Aceh', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Sumatera Utara', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Sumatera Barat', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Riau', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Jambi', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Sumatera Selatan', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
-            ['province' => 'Bangka Belitung', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Bengkulu', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Lampung', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
+            ['province' => 'Kepulauan Bangka Belitung', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Kepulauan Riau', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Bali', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
             ['province' => 'Nusa Tenggara Barat', 'zone' => 3, 'cost_regular' => 25000, 'cost_express' => 35000],
@@ -56,7 +56,10 @@ class ShippingZoneSeeder extends Seeder
         ];
 
         foreach ($zones as $zone) {
-            ShippingZone::create($zone);
+            ShippingZone::updateOrCreate(
+                ['province' => $zone['province']],
+                $zone
+            );
         }
     }
 }

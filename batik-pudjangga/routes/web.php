@@ -146,11 +146,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('products/{product}/variants/{variant}', [AdminProductController::class, 'updateVariant'])->name('products.variants.update');
     Route::delete('products/{product}/variants/{variant}', [AdminProductController::class, 'destroyVariant'])->name('products.variants.destroy');
 
-    // Orders Management
-    Route::resource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
-    Route::post('orders/{order}/update-status', [AdminOrderController::class, 'updateStatus'])->name('orders.update.status');
-    Route::post('orders/{order}/add-resi', [AdminOrderController::class, 'addResi'])->name('orders.add.resi');
-
+   // Orders Management - FIXED ROUTES
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/', [AdminOrderController::class, 'index'])->name('index');
+        Route::get('/{order}', [AdminOrderController::class, 'show'])->name('show');
+        Route::put('/{order}', [AdminOrderController::class, 'update'])->name('update');
+        
+        // CRITICAL FIX: Use dash in route name to match view
+        Route::post('/{order}/update-status', [AdminOrderController::class, 'updateStatus'])->name('update-status');
+        Route::post('/{order}/add-resi', [AdminOrderController::class, 'addResi'])->name('add-resi');
+    });
+    
     // Users Management
     Route::resource('users', AdminUserController::class);
 
