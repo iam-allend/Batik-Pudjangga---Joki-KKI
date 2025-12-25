@@ -4,16 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        $query = auth()->user()->orders()->with('items.product')->latest();
+        $query = Auth::user()->orders()->latest();
 
-        // Filter by status
-        if ($request->has('status') && $request->status) {
-            $query->status($request->status);
+        // Filter by status if provided
+        if ($request->has('status') && $request->status != '') {
+            $query->where('status', $request->status);
         }
 
         $orders = $query->paginate(10);
@@ -23,8 +24,8 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        // Check ownership
-        if ($order->user_id !== auth()->id()) {
+        // Authorize
+        if ($order->user_id !== Auth::id()) {
             abort(403);
         }
 
@@ -35,27 +36,25 @@ class OrderController extends Controller
 
     public function cancel(Order $order)
     {
-        // Check ownership
-        if ($order->user_id !== auth()->id()) {
+        // Authorize
+        if ($order->user_id !== Auth::id()) {
             abort(403);
         }
 
-        // Only allow cancellation if order is still pending
+        // Only pending orders can be cancelled
         if ($order->status !== 'pending') {
-            return back()->with('error', 'This order cannot be cancelled.');
+            return redirect()->route('orders.show', $order)
+                ->with('error', 'Only pending orders can be cancelled!');
         }
+
+        $order->update(['status' => 'cancelled']);
 
         // Restore product stock
         foreach ($order->items as $item) {
             $item->product->increment('stock', $item->quantity);
         }
 
-        // Update order status
-        $order->update([
-            'status' => 'cancelled',
-        ]);
-
-        return back()->with('success', 'Order cancelled successfully. Stock has been restored.');
+        return redirect()->route('orders.index')
+            ->with('success', 'Order cancelled successfully!');
     }
 }
-

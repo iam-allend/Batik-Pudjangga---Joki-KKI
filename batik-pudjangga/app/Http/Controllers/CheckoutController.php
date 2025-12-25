@@ -5,181 +5,131 @@ namespace App\Http\Controllers;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Address;
 use App\Models\ShippingZone;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class CheckoutController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
-        
-        // Get selected cart items from session or all cart items
-        $selectedIds = session('checkout_items');
-        
-        if ($selectedIds) {
-            $cartItems = Cart::with('product')
-                ->whereIn('id', $selectedIds)
-                ->where('user_id', $user->id)
-                ->get();
-        } else {
-            $cartItems = $user->carts()->with('product')->get();
+        // Get selected items from session
+        $selectedItems = session('checkout_items', []);
+
+        if (empty($selectedItems)) {
+            return redirect()->route('cart.index')->with('error', 'No items selected for checkout!');
         }
 
-        if ($cartItems->isEmpty()) {
-            return redirect()->route('cart.index')
-                ->with('error', 'Your cart is empty!');
+        // Get cart items
+        $cartItems = Cart::whereIn('id', $selectedItems)
+            ->where('user_id', Auth::id())
+            ->with('product')
+            ->get();
+
+        // Check stock availability
+        foreach ($cartItems as $item) {
+            if ($item->product->stock < $item->quantity) {
+                return redirect()->route('cart.index')
+                    ->with('error', "Product {$item->product->name} is out of stock!");
+            }
         }
 
         // Calculate subtotal
-        $subtotal = $cartItems->sum('subtotal');
+        $subtotal = $cartItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
 
         // Get user addresses
-        $addresses = $user->addresses;
-        $defaultAddress = $user->defaultAddress;
+        $addresses = Auth::user()->addresses;
 
-        // Get provinces for shipping
-        $provinces = ShippingZone::select('province')->distinct()->orderBy('province')->get();
-
-        return view('checkout.index', compact('cartItems', 'subtotal', 'addresses', 'defaultAddress', 'provinces'));
+        return view('checkout.index', compact('cartItems', 'subtotal', 'addresses', 'selectedItems'));
     }
 
     public function process(Request $request)
     {
         $request->validate([
-            'address_id' => 'nullable|exists:addresses,id',
-            'recipient_name' => 'required|string|max:100',
-            'address' => 'required|string',
-            'city' => 'required|string|max:100',
-            'province' => 'required|string|max:100',
-            'postal_code' => 'required|string|max:10',
-            'phone' => 'required|string|max:20',
-            'payment_method' => 'required|in:transfer,cod',
-            'shipping_method' => 'required|in:regular,express',
+            'address_id' => ['required', 'exists:addresses,id'],
+            'shipping_method' => ['required', 'in:regular,express'],
+            'payment_method' => ['required', 'in:transfer,cod'],
+            'shipping_cost' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $user = auth()->user();
+        $selectedItems = explode(',', $request->selected_items);
+        $cartItems = Cart::whereIn('id', $selectedItems)
+            ->where('user_id', Auth::id())
+            ->with('product')
+            ->get();
 
-        // Get cart items
-        $selectedIds = session('checkout_items');
-        if ($selectedIds) {
-            $cartItems = Cart::with('product')
-                ->whereIn('id', $selectedIds)
-                ->where('user_id', $user->id)
-                ->get();
-        } else {
-            $cartItems = $user->carts()->with('product')->get();
-        }
+        // Calculate subtotal
+        $subtotal = $cartItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
 
-        if ($cartItems->isEmpty()) {
-            return redirect()->route('cart.index')
-                ->with('error', 'Your cart is empty!');
-        }
-
-        // Calculate amounts
-        $subtotal = $cartItems->sum('subtotal');
-        $shippingCost = ShippingZone::getCost($request->province, $request->shipping_method);
+        $shippingCost = $request->shipping_cost;
         $totalAmount = $subtotal + $shippingCost;
+
+        // Get address
+        $address = Address::findOrFail($request->address_id);
 
         DB::beginTransaction();
         try {
             // Create order
             $order = Order::create([
-                'user_id' => $user->id,
-                'recipient_name' => $request->recipient_name,
-                'address' => $request->address,
-                'city' => $request->city,
-                'province' => $request->province,
-                'postal_code' => $request->postal_code,
-                'phone' => $request->phone,
+                'order_code' => Order::generateOrderCode(),
+                'user_id' => Auth::id(),
+                'recipient_name' => $address->recipient_name,
+                'address' => $address->address,
+                'city' => $address->city,
+                'province' => $address->province,
+                'postal_code' => $address->postal_code,
+                'phone' => $address->phone,
                 'subtotal' => $subtotal,
                 'shipping_cost' => $shippingCost,
                 'total_amount' => $totalAmount,
                 'payment_method' => $request->payment_method,
-                'shipping_method' => $request->shipping_method,
+                'shipping_method' => ucfirst($request->shipping_method) . ' Shipping',
                 'status' => 'pending',
-                'design_status' => 'pending',
             ]);
 
-            // Create order items
-            foreach ($cartItems as $cartItem) {
+            // Create order items & reduce stock
+            foreach ($cartItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'product_id' => $cartItem->product_id,
-                    'quantity' => $cartItem->quantity,
-                    'price' => $cartItem->price,
-                    'size' => $cartItem->size,
-                    'notes' => $cartItem->notes,
+                    'product_id' => $item->product_id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'size' => $item->size,
+                    'notes' => $item->notes,
                 ]);
 
-                // Update product stock
-                $product = $cartItem->product;
-                $product->decrement('stock', $cartItem->quantity);
+                // Reduce stock
+                $item->product->decrement('stock', $item->quantity);
+
+                // Remove from cart
+                $item->delete();
             }
 
-            // Delete cart items
-            Cart::whereIn('id', $cartItems->pluck('id'))->delete();
+            DB::commit();
 
             // Clear session
             session()->forget('checkout_items');
 
-            DB::commit();
-
-            // Redirect based on payment method
-            if ($request->payment_method === 'transfer') {
-                return redirect()->route('checkout.payment', $order)
-                    ->with('success', 'Order placed successfully! Please complete your payment.');
-            } else {
-                return redirect()->route('checkout.success', $order)
-                    ->with('success', 'Order placed successfully! Your order will be processed soon.');
-            }
-
+            return redirect()->route('checkout.payment', $order);
         } catch (\Exception $e) {
-            DB::rollback();
-            return back()->with('error', 'Failed to process order. Please try again.');
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Something went wrong! Please try again.');
         }
     }
 
     public function payment(Order $order)
     {
-        // Check ownership
-        if ($order->user_id !== auth()->id()) {
+        // Authorize
+        if ($order->user_id !== Auth::id()) {
             abort(403);
-        }
-
-        // Check if already paid or not transfer
-        if ($order->payment_method !== 'transfer' || $order->status !== 'pending') {
-            return redirect()->route('orders.show', $order);
         }
 
         return view('checkout.payment', compact('order'));
-    }
-
-    public function confirmPayment(Request $request, Order $order)
-    {
-        // Check ownership
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
-        }
-
-        // In real app, you would handle payment proof upload here
-        // For now, just update status
-        $order->update([
-            'status' => 'processing',
-        ]);
-
-        return redirect()->route('checkout.success', $order)
-            ->with('success', 'Payment confirmation received! Your order is being processed.');
-    }
-
-    public function success(Order $order)
-    {
-        // Check ownership
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
-        }
-
-        return view('checkout.success', compact('order'));
     }
 }

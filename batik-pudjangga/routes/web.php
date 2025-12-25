@@ -1,7 +1,7 @@
 <?php
 
 // ============================================
-// FILE: routes/web.php
+// FILE: routes/web.php (FIXED VERSION)
 // ============================================
 
 use Illuminate\Support\Facades\Route;
@@ -98,15 +98,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
     });
 
-    // Order Routes
-    Route::prefix('orders')->name('orders.')->group(function () {
+    // Order Routes (User)
+    Route::prefix('my-orders')->name('orders.')->group(function () {
         Route::get('/', [OrderController::class, 'index'])->name('index');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('cancel');
     });
 
-    // Profile Routes
-    Route::prefix('profile')->name('profile.')->group(function () {
+    // User Profile Routes (Custom)
+    Route::prefix('my-profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('index');
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::put('/update', [ProfileController::class, 'update'])->name('update');
@@ -168,18 +168,28 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports/products', [DashboardController::class, 'productsReport'])->name('reports.products');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Laravel Breeze Default Routes (Keep for Auth)
+|--------------------------------------------------------------------------
+*/
 
-// ============ DEFAULT BREEZE ROUTES ============
-
+// Dashboard redirect to home or profile
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    if (auth()->user()->is_admin) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect()->route('profile.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Breeze profile routes (if you want to keep them as alternative)
+// Comment these out if you only want to use custom profile routes
+/*
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile-settings', [ProfileController::class, 'edit'])->name('breeze.profile.edit');
+    Route::patch('/profile-settings', [ProfileController::class, 'update'])->name('breeze.profile.update');
+    Route::delete('/profile-settings', [ProfileController::class, 'destroy'])->name('breeze.profile.destroy');
 });
-// ============ DEFAULT BREEZE ROUTES ============
+*/
 
 require __DIR__ . '/auth.php';

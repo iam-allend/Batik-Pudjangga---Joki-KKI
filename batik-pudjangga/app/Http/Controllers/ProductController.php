@@ -3,30 +3,81 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Wishlist;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
     public function show(Product $product)
     {
+        // Load relationships
         $product->load(['images', 'variants']);
 
-        // Related products (same category)
-        $relatedProducts = Product::with('images')
-            ->where('category', $product->category)
-            ->where('id', '!=', $product->id)
-            ->inStock()
-            ->take(4)
-            ->get();
-
-        // Check if in wishlist
-        $inWishlist = false;
-        if (auth()->check()) {
-            $inWishlist = auth()->user()->wishlists()
+        // Check if in wishlist (for logged in users)
+        $isInWishlist = false;
+        if (Auth::check()) {
+            $isInWishlist = Wishlist::where('user_id', Auth::id())
                 ->where('product_id', $product->id)
                 ->exists();
         }
 
-        return view('products.show', compact('product', 'relatedProducts', 'inWishlist'));
+        // Get related products (same category, exclude current)
+        $relatedProducts = Product::where('category', $product->category)
+            ->where('id', '!=', $product->id)
+            ->where('stock', '>', 0)
+            ->inRandomOrder()
+            ->limit(4)
+            ->get();
+
+        return view('products.show', compact('product', 'isInWishlist', 'relatedProducts'));
+    }
+
+    public function search(Request $request)
+    {
+        $query = Product::query();
+
+        // Search by keyword
+        if ($request->has('q') && $request->q != '') {
+            $keyword = $request->q;
+            $query->where(function($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")
+                  ->orWhere('description', 'like', "%{$keyword}%");
+            });
+        }
+
+        // Filter by category
+        if ($request->has('category') && $request->category != '') {
+            $query->where('category', $request->category);
+        }
+
+        // Filter by price range
+        if ($request->has('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->has('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        // Sort
+        $sort = $request->get('sort', 'latest');
+        switch ($sort) {
+            case 'price_low':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_high':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'name':
+                $query->orderBy('name', 'asc');
+                break;
+            default:
+                $query->latest();
+        }
+
+        $products = $query->paginate(12);
+
+        return view('products.search', compact('products'));
     }
 }
+
