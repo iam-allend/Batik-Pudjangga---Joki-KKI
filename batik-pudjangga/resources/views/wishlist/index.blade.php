@@ -22,12 +22,6 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    @if(session('success'))
-                        <div class="alert alert-success alert-dismissible fade show">
-                            {{ session('success') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
 
                     @if($wishlistItems->count() > 0)
                         <div class="row">
@@ -42,12 +36,14 @@
                                         </a>
                                         
                                         <!-- Remove Button -->
-                                        <form action="{{ route('wishlist.remove', $wishlist->product) }}" 
-                                              method="POST" 
-                                              class="wishlist-remove"
-                                              onsubmit="return confirm('Remove from wishlist?')">
+                                        <form action="{{ route('wishlist.remove') }}"
+                                            method="POST"
+                                            class="wishlist-remove"
+                                            onsubmit="return confirm('Remove from wishlist?')">
+
                                             @csrf
-                                            @method('DELETE')
+                                            <input type="hidden" name="product_id" value="{{ $wishlist->product_id }}">
+
                                             <button type="submit" class="btn btn-danger btn-sm">
                                                 <i class="fas fa-times"></i>
                                             </button>
@@ -202,6 +198,7 @@
     border-radius: 5px;
     font-size: 12px;
     font-weight: bold;
+    width: fit-content;
 }
 
 .badge-new {

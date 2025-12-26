@@ -73,7 +73,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('cart')->name('cart.')->group(function () {
         Route::get('/', [CartController::class, 'index'])->name('index');
         Route::post('/add', [CartController::class, 'add'])->name('add');
-        Route::post('/add-inCard', [CartController::class, 'add_inCard'])->name('add.inCard');  
+        Route::post('/add-inCard', [CartController::class, 'add_inCard'])->name('add.inCard');
         Route::post('/quick-add', [CartController::class, 'quickAdd'])->name('quick.add'); // AJAX
         Route::get('/count', [CartController::class, 'getCount'])->name('count'); // AJAX
         Route::put('/update/{cart}', [CartController::class, 'update'])->name('update');
@@ -82,11 +82,21 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Wishlist Routes - SIMPLE POST
-    Route::prefix('wishlist')->name('wishlist.')->group(function () {
+    Route::prefix('wishlist')->name('wishlist.')->middleware('auth')->group(function () {
+        // View wishlist page
         Route::get('/', [WishlistController::class, 'index'])->name('index');
-        Route::post('/add/{product}', [WishlistController::class, 'add'])->name('add');
-        Route::post('/toggle/{product}', [WishlistController::class, 'toggle'])->name('toggle'); // AJAX
-        Route::delete('/remove/{product}', [WishlistController::class, 'remove'])->name('remove');
+
+        // Add to wishlist - SIMPLE POST
+        Route::post('/add', [WishlistController::class, 'add'])->name('add');
+
+        // Remove from wishlist - SIMPLE POST
+        Route::post('/remove', [WishlistController::class, 'remove'])->name('remove');
+
+        // Toggle wishlist - SIMPLE POST (Add if not exists, Remove if exists)
+        Route::post('/toggle', [WishlistController::class, 'toggle'])->name('toggle');
+
+        // Check if in wishlist - AJAX GET
+        Route::get('/check', [WishlistController::class, 'check'])->name('check');
     });
 
     // Checkout Routes
@@ -146,17 +156,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('products/{product}/variants/{variant}', [AdminProductController::class, 'updateVariant'])->name('products.variants.update');
     Route::delete('products/{product}/variants/{variant}', [AdminProductController::class, 'destroyVariant'])->name('products.variants.destroy');
 
-   // Orders Management - FIXED ROUTES
+    // Orders Management - FIXED ROUTES
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [AdminOrderController::class, 'index'])->name('index');
         Route::get('/{order}', [AdminOrderController::class, 'show'])->name('show');
         Route::put('/{order}', [AdminOrderController::class, 'update'])->name('update');
-        
+
         // CRITICAL FIX: Use dash in route name to match view
         Route::post('/{order}/update-status', [AdminOrderController::class, 'updateStatus'])->name('update-status');
         Route::post('/{order}/add-resi', [AdminOrderController::class, 'addResi'])->name('add-resi');
     });
-    
+
     // Users Management
     Route::resource('users', AdminUserController::class);
 

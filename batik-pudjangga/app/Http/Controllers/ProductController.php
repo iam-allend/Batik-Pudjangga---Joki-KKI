@@ -9,12 +9,15 @@ use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
+    /**
+     * Display product detail page
+     */
     public function show(Product $product)
     {
         // Load relationships
         $product->load(['images', 'variants']);
 
-        // Check if in wishlist (for logged in users)
+        // Check if product is in user's wishlist
         $isInWishlist = false;
         if (Auth::check()) {
             $isInWishlist = Wishlist::where('user_id', Auth::id())
@@ -30,9 +33,23 @@ class ProductController extends Controller
             ->limit(4)
             ->get();
 
+        // Check wishlist for related products (if logged in)
+        if (Auth::check()) {
+            $wishlistProductIds = Wishlist::where('user_id', Auth::id())
+                ->pluck('product_id')
+                ->toArray();
+
+            foreach ($relatedProducts as $relatedProduct) {
+                $relatedProduct->in_wishlist = in_array($relatedProduct->id, $wishlistProductIds);
+            }
+        }
+
         return view('products.show', compact('product', 'isInWishlist', 'relatedProducts'));
     }
 
+    /**
+     * Search products
+     */
     public function search(Request $request)
     {
         $query = Product::query();
@@ -40,9 +57,9 @@ class ProductController extends Controller
         // Search by keyword
         if ($request->has('q') && $request->q != '') {
             $keyword = $request->q;
-            $query->where(function($q) use ($keyword) {
+            $query->where(function ($q) use ($keyword) {
                 $q->where('name', 'like', "%{$keyword}%")
-                  ->orWhere('description', 'like', "%{$keyword}%");
+                    ->orWhere('description', 'like', "%{$keyword}%");
             });
         }
 
@@ -77,7 +94,17 @@ class ProductController extends Controller
 
         $products = $query->paginate(12);
 
+        // Check wishlist for search results (if logged in)
+        if (Auth::check()) {
+            $wishlistProductIds = Wishlist::where('user_id', Auth::id())
+                ->pluck('product_id')
+                ->toArray();
+
+            foreach ($products as $product) {
+                $product->in_wishlist = in_array($product->id, $wishlistProductIds);
+            }
+        }
+
         return view('products.search', compact('products'));
     }
 }
-

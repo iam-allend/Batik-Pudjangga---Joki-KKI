@@ -4,6 +4,8 @@
 
 @section('content')
 <div class="container py-5">
+    
+
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -112,6 +114,7 @@
                     <p class="text-muted">{{ $product->description }}</p>
                 </div>
                 @endif
+                
 
                 <!-- Add to Cart Form -->
                 <form action="{{ route('cart.add') }}" method="POST" id="addToCartForm">
@@ -152,7 +155,6 @@
                         </div>
                     </div>
 
-                    <!-- Notes (Optional) -->
                     <div class="mb-4">
                         <label class="form-label">Special Notes (Optional)</label>
                         <textarea name="notes" class="form-control" rows="3"
@@ -161,29 +163,25 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="d-flex gap-2 mb-4">
-                        @auth
-                        @if($product->stock > 0)
-                        <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
-                            <i class="fas fa-shopping-cart me-2"></i> Add to Cart
-                        </button>
-                        @else
-                        <button type="button" class="btn btn-secondary btn-lg flex-grow-1" disabled>
-                            Out of Stock
-                        </button>
-                        @endif
+                    @auth
+                    @if($product->stock > 0)
+                    <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
+                        <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+                    </button>
+                    @else
+                    <button type="button" class="btn btn-secondary btn-lg flex-grow-1" disabled>
+                        Out of Stock
+                    </button>
+                    @endif
+                    @endauth
+                </form>
 
-                        <!-- Wishlist Button -->
-                        <button type="button" class="btn btn-outline-danger btn-lg"
-                            onclick="toggleWishlist({{ $product->id }})" id="wishlistBtn">
-                            <i class="fas fa-heart {{ $isInWishlist ? 'text-danger' : '' }}"></i>
-                        </button>
-                        @else
-                        <a href="{{ route('login') }}" class="btn btn-primary btn-lg flex-grow-1">
-                            <i class="fas fa-sign-in-alt me-2"></i> Login to Purchase
-                        </a>
-                        @endauth
-                    </div>
+                <form action="{{ route('wishlist.toggle') }}" method="POST" style="display: inline;">
+                    @csrf
+                    <input type="hidden" name="product_id" value="{{ $product->id }}">
+                    <button type="submit" class="btn mt-2 mb-3 btn-outline-danger btn-lg">
+                        <i class="fas fa-heart {{ $isInWishlist ? 'text-danger' : '' }}"></i>
+                    </button>
                 </form>
 
                 <!-- Product Meta -->
@@ -372,64 +370,6 @@ function decreaseQty() {
     }
 }
 
-// Toggle Wishlist
-function toggleWishlist(productId) {
-    const btn = document.getElementById('wishlistBtn');
-    const icon = btn.querySelector('i');
-    
-    fetch(`/wishlist/toggle/${productId}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (data.action === 'added') {
-                icon.classList.add('text-danger');
-                showNotification('Added to wishlist!', 'success');
-            } else {
-                icon.classList.remove('text-danger');
-                showNotification('Removed from wishlist!', 'info');
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Something went wrong!', 'danger');
-    });
-}
 
-// Copy Link
-function copyLink() {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-        showNotification('Link copied to clipboard!', 'success');
-    });
-}
-
-// Show Notification
-function showNotification(message, type) {
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alert.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    document.body.appendChild(alert);
-    
-    setTimeout(() => {
-        alert.remove();
-    }, 3000);
-}
-
-// Add to Cart Success
-@if(session('success'))
-    showNotification('{{ session('success') }}', 'success');
-@endif
 </script>
 @endsection
